@@ -9,7 +9,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
-from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import AdaBoostClassifier, RandomForestClassifier, GradientBoostingClassifier
+from catboost import CatBoostClassifier
 
 if __name__ == '__main__':
     feature_file = "../data/A6_exp_data/Features_00000020.npz"
@@ -33,26 +34,60 @@ if __name__ == '__main__':
     print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
 
     xgb_param = {
-        'clf__n_estimators': [20, 50, 100, 200],
+        'clf__n_estimators': [10, 50, 100, 200],
         'clf__learning_rate': [0.01, 0.1, 0.99],
         'clf__objective': ['multi:softmax'],
         'clf__silent': [True]
     }
 
-    lgb_param = {'clf__n_estimators': [20, 50, 100, 200],
+    lgb_param = {'clf__n_estimators': [10, 50, 100, 200],
                  'clf__learning_rate': [0.01, 0.1, 0.99],
                  'clf__objective': ['multiclass'],
                  'clf__silent': [True]
                  }
 
-    ada_param = {'clf__n_estimators': [20, 50, 100, 200],
+    ada_param = {'clf__n_estimators': [10, 50, 100, 200],
                  'clf__learning_rate': [0.01, 0.1, 0.99]
                  }
 
+    cat_param = {'clf__iterations': [10, 50, 100, 200],
+                 'clf__learning_rate': [0.01, 0.1, 0.99]
+                 }
 
-    params = [ada_param, xgb_param, lgb_param]
-    classifiers = [AdaBoostClassifier(), XGBClassifier(), LGBMClassifier()]
-    names = ['adaboost', 'xgboost', 'lightgbm']
+    forest_param = {'clf__n_estimators': [10, 50, 100, 200],
+                    'clf__criterion': ['gini', 'entropy']
+                    }
+
+    gdbt_param = {'clf__n_estimators': [10, 50, 100, 200],
+                  'clf__learning_rate': [0.01, 0.1, 0.99],
+                  'clf__loss': ['deviance', 'exponential']
+                  }
+
+
+    params = [
+        forest_param,
+        ada_param,
+        gdbt_param,
+        xgb_param,
+        lgb_param,
+        cat_param
+    ]
+    classifiers = [
+        RandomForestClassifier(),
+        AdaBoostClassifier(),
+        GradientBoostingClassifier(),
+        XGBClassifier(),
+        LGBMClassifier(),
+        CatBoostClassifier()
+    ]
+    names = [
+        'random_forest',
+        'adaboost',
+        'gdbt',
+        'xgboost',
+        'lightgbm',
+        'catboost'
+    ]
 
     # grid search with cross validation
     for clf, param, name in zip(classifiers, params, names):
@@ -62,7 +97,7 @@ if __name__ == '__main__':
         clf_gs = GridSearchCV(pipe,
                               param_grid=param,
                               scoring='accuracy',
-                              n_jobs=3,
+                              n_jobs=8,
                               cv=3,
                               verbose=3
                               )
