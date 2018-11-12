@@ -1,6 +1,6 @@
-#data format instruction
+# data format instruction
 
-##sleep stage data
+## sleep stage data
 Sleep stage data should be stored in csv format which means elements should be separated by ','.
 
 Since there are 5 sleep stage:
