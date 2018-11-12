@@ -18,3 +18,19 @@ For example, if one frame's stage is N2 and the the next frame's stage is REM, i
 0, 0, 1, 0, 0
 
 0, 0, 0, 0, 1
+
+## sleep event data
+Sleep event data should be stored in csv format too.
+
+The key include:
+- events
+- type
+- start time(s)
+- frame id
+- duration(s)
+
+And also one line as one sample, that means one event.
+
+For example, one record could like this:
+
+SpO2, RelativeDesaturation, 1423, 48, 65
