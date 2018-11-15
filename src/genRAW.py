@@ -9,7 +9,7 @@ import os
 from preprocessing.edfLoader import extractLabels, extractRawFeature, extractEvents
 
 if __name__ == '__main__':
-    dir_path = "E:\\Document\\sleep data\\A6_data_exp_part2"
+    dir_path = "E:\\medical data\\A6_data_exp_part2"
     output_file = "../data/A6_exp_data/"
     if not os.path.exists(output_file):
         os.makedirs(output_file)
