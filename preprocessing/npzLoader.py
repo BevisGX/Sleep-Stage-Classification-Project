@@ -6,7 +6,7 @@ This tool is used to extract .npz files
 import numpy as np
 import os
 
-def loadData(feature_file, label_file, channels):
+def loadData(feature_file, label_file):
     """
     Load npz data from npz file,
     :param feature_file, label_file: string of file's path
@@ -20,14 +20,13 @@ def loadData(feature_file, label_file, channels):
     features = []
     labels = lf['stage_labels']
     sfreq = ff['sampling rate'][0]
-    for ch in channels:
-        features.append(ff['eeg_raw'][ff['channels'].tolist().index(ch)])
+    features.append(ff['features'][ff['channels'].tolist().index(ch)])
     features = np.asarray(features)
     k, M, N = features.shape
     if M != len(labels):
         raise Exception('The number of features is not equal to the number of labels')
-    if k != len(channels):
-        raise Exception('The number of channels does not match the requirements')
+    # if k != len(channels):
+    #     raise Exception('The number of channels does not match the requirements')
     if N != 30 * sfreq:
         raise Exception('The number of points does not match the sampling frequency')
     ftmp = []
@@ -46,7 +45,7 @@ def loadData(feature_file, label_file, channels):
     print(features.shape)
     return features, labels
 
-def loadNData(data_dir, channels, n):
+def loadNData(data_dir, n):
     """
     load several npz data file from data directory
     :param data_dir: string of directory's name
@@ -63,7 +62,7 @@ def loadNData(data_dir, channels, n):
         if fname.split('_')[0] == 'Features':
             ff = os.path.join(data_dir, fname)      # feature file
             lf = os.path.join(data_dir, 'Labels_' + fname.split('_')[1])        #label file
-            feature, label = loadData(ff, lf, channels)
+            feature, label = loadData(ff, lf)
             fileNum += 1
             features.append(feature)
             labels.append(label)

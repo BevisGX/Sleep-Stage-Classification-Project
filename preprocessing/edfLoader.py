@@ -12,11 +12,12 @@ import pyedflib
 import sys, os, re
 import xml.etree.ElementTree as ET
 from preprocessing.xmlTool import removePrefix, findSubelement
+from preprocessing.featurePrepreocess import downsample_fft
 
 ##################################
 # step 1: read data from edf files
 ##################################
-def read_edf_file(file_path):
+def read_edf_file(file_path, selected_channels):
     """
     Read a raw edf file, and get the sampling data for the given channels
 
@@ -34,28 +35,29 @@ def read_edf_file(file_path):
     print(file_path)
     edf = pyedflib.EdfReader(file_path)
     channels = edf.getSignalLabels()
-    labels = []
+    # labels = []
     eeg_raw = []
     fs = []
     for i in range(len(channels)):
-        if "EEG" in channels[i] or "EOG" in channels[i] or "EMG" in channels:
-            labels.append(channels[i])
+        if channels[i] in selected_channels:
+            # labels.append(channels[i])
             eeg_raw.append(edf.readSignal(i))
             fs.append(edf.getSampleFrequencies()[i])
     eeg_raw = np.asarray(eeg_raw)
-    return eeg_raw, labels, fs
+    return eeg_raw, fs
 
 ##################################
 # step 2: extract features
 #################################
-def extractRawFeature(dir_path, output_file):
+def extractRawFeature(dir_path, output_file, channels):
     """
-    Extract the raw eeg feature for each 30 second epoch, and output the generated features to .npz file
+    Extract the raw eeg feature for each 30 second epoch, downsample and compute fft, and output the generated features to .npz file
 
     The feature and relative informations would be saved in .npy format and wrapped up as one .npz file
+
     The keys of save dictionary include:
         'channels' : a list of channel names
-        'eeg_raw' : a (k, n, 30*Fs) numpy array, where k is the number of channels, Fs is the sampling rate, and n is the number of epochs
+        'eeg_raw' : a (k, n, 30*Fs/downsample_factor/2) numpy array, where k is the number of channels, Fs is the sampling rate, and n is the number of epochs
         'sampling rate': a list of sampling rate related to channel names
 
     input:
@@ -74,7 +76,7 @@ def extractRawFeature(dir_path, output_file):
             if fname.split('.')[1] != 'edf' or "T" in fname:        #bad data, sad
                 continue
             fname = dir_path+'/'+dirName+'/'+fname
-            eeg_raw, channels, fss = read_edf_file(fname)
+            eeg_raw, fss = read_edf_file(fname, channels)
             fs = fss[0]         #as the sampling rates are the same
             print(eeg_raw.shape)
             k, M = eeg_raw.shape
@@ -86,9 +88,11 @@ def extractRawFeature(dir_path, output_file):
         eeg_raw = result[0]
         for i in range(1, len(result)):
             eeg_raw = np.concatenate((eeg_raw, result[i]), axis = 1)        #concatenate signals orignally saved in different files to a complete signal
+        features = downsample_fft(eeg_raw, 5, axis=2)
+        print("features shape ", features.shape)
         save_dict = {
             "channels": channels,
-            "eeg_raw": eeg_raw,
+            "features": features,
             "sampling rate": fss
         }
         np.savez(os.path.join(output_file, "Features_"+nsrrid), **save_dict)
