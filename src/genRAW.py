@@ -10,10 +10,10 @@ from preprocessing.edfLoader import extractLabels, extractRawFeature, extractEve
 from multiprocessing import Pool
 
 if __name__ == '__main__':
-    dir_path = "E:\\Document\\sleep data\\A6_data_exp_part2"
-    output_file = "../data/A6_exp_data/"
-    if not os.path.exists(output_file):
-        os.makedirs(output_file)
+    dir_path = "/home/user3/Document/sleep data/A6_data_exp_part2/bad data/"
+    output_path = "../data/A6_exp_data/precessed/bad data/"
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
 
     channels = [
         # 'EEG F3-A2',
@@ -29,8 +29,8 @@ if __name__ == '__main__':
     ]
 
     pool = Pool() # multi process
-    pool.apply_async(extractRawFeature(dir_path,output_file, channels))
-    # pool.apply_async(extractLabels(dir_path,output_file))
-    # pool.apply_async(extractEvents(dir_path, output_file))
+    pool.apply_async(extractRawFeature(dir_path,output_path, channels))
+    # pool.apply_async(extractLabels(dir_path, output_path))
+    # pool.apply_async(extractEvents(dir_path, output_path))
     pool.close()
     pool.join()

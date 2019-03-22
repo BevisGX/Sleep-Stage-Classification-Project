@@ -11,8 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-feature_file = "../data/A6_exp_data/Features_00000020.npz"
-label_file = "../data/A6_exp_data/Labels_00000020.npz"
+feature_file = "../data/A6_exp_data/train/Features_00000020.npz"
+label_file = "../data/A6_exp_data/train/Labels_00000020.npz"
 data_dir = "../data/A6_exp_data"
 channels = [
     # 'EEG F3-A2',
@@ -26,12 +26,12 @@ channels = [
     # 'EOG ROC-A2'
 ]
 
-# samples, labels = loadData(feature_file, label_file, channels)
-# print("Original signal size = ", samples.shape)
-# #samples, labels = loadNData(data_dir, channels, 5)
-#
-#
-# # downsample signal from 200Hz to 50Hz
+samples, labels = loadData(feature_file, label_file, channels)
+print("Original signal size = ", samples.shape)
+#samples, labels = loadNData(data_dir, channels, 5)
+
+
+# downsample signal from 200Hz to 50Hz
 # downsample_factor = 5
 # samples_down = decimate(samples, downsample_factor, axis=1)
 # print("DownSampled signal size = ", samples_down.shape)
@@ -44,8 +44,8 @@ channels = [
 # plt.subplot(212)
 # plt.plot(samples_down[0])
 # plt.show()
-#
-#
+
+
 # # fast fourier transform
 # samples_fft = rfft(samples_down, axis=1)
 #
@@ -53,8 +53,8 @@ channels = [
 # plt.figure(2)
 # plt.subplot(211)
 # plt.title("fft")
-# time = range(0, 30, 0.05)
-# plt.plot(time, samples_fft[0])
+# # time = range(0, 30, 0.05)
+# plt.plot(samples_fft[0])
 #
 #
 # # short time fourier transform
@@ -68,15 +68,17 @@ channels = [
 # # print("After stft signal size = ", samples_stft.shape)
 
 
-def downsample_fft(signal, downsample_factor, axis):
+def downsample_fft(signal, freq, axis):
      """
-     Downsample a signal and compute the fourier transform
+     Downsample a signal to 40 Hz and compute the fourier transform
 
      :param signal:
-     :param downsample_factor:
+     :param freq:
      :param axis:
      :return:
      """
+     downsample_factor = int(freq / 40)
      samples_down = decimate(signal, downsample_factor, axis=axis)
-     samples_fft = rfft(samples_down, axis=axis)
+     samples_fft = abs(rfft(samples_down, axis=axis))
      return samples_fft
+

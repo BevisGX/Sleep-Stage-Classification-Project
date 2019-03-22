@@ -3,20 +3,17 @@ W = 0
 N1 = 1
 N2 = 2
 N3 = 3
-REM = 4
-UNKNOWN = 5
+REM = 5
+UNKNOWN = -1
 
-NUM_CLASSES = 6  # exclude UNKNOWN
+NUM_CLASSES = 5  # exclude UNKNOWN
 
 class_dict = {
     0: "W",
     1: "N1",
     2: "N2",
     3: "N3",
-    4: "REM",
-    5: "",
-    6: "",
-    11: "PeriodicRespiration",
+    5: "REM"
 }
 
 EPOCH_SEC_LEN = 30  # seconds

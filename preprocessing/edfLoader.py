@@ -13,16 +13,18 @@ import sys, os, re
 import xml.etree.ElementTree as ET
 from preprocessing.xmlTool import removePrefix, findSubelement
 from preprocessing.featurePrepreocess import downsample_fft
+from preprocessing.psg_preprocess import psg_preprocess
 
 ##################################
 # step 1: read data from edf files
 ##################################
-def read_edf_file(file_path, selected_channels):
+def read_edf_file(file_path, selected_channels, ecg_channel):
     """
     Read a raw edf file, and get the sampling data for the given channels
 
     input:
         file_path: the path to the edf file
+        selected_channels: the channels to read
     output:
         eeg_raw: a k*N shape numpy array, where k is the number of channels, N=Fs*T is the total number of samples for
             one patient, Fs is the sampling rate, T is the recording duration
@@ -37,62 +39,84 @@ def read_edf_file(file_path, selected_channels):
     channels = edf.getSignalLabels()
     # labels = []
     eeg_raw = []
+    ecg_raw = []
     fs = []
-    for i in range(len(channels)):
-        if channels[i] in selected_channels:
+    for ii in range(len(channels)):
+        if channels[ii] in selected_channels:
             # labels.append(channels[i])
-            eeg_raw.append(edf.readSignal(i))
-            fs.append(edf.getSampleFrequencies()[i])
+            eeg_raw.append(edf.readSignal(ii))
+            fs.append(edf.getSampleFrequencies()[ii])
+        elif(channels[ii] == ecg_channel):
+            ecg_raw = edf.readSignal(ii)
+
     eeg_raw = np.asarray(eeg_raw)
-    return eeg_raw, fs
+    return eeg_raw, fs, ecg_raw
 
 ##################################
 # step 2: extract features
 #################################
-def extractRawFeature(dir_path, output_file, channels):
+def extractRawFeature(dir_path, output_file, channels, ecg_channel='ECG I'):
     """
-    Extract the raw eeg feature for each 30 second epoch, downsample and compute fft, and output the generated features to .npz file
+    Extract the raw eeg feature for each 30 second epoch, downsample and compute fft, and save the generated features
+    to .npz file
 
     The feature and relative informations would be saved in .npy format and wrapped up as one .npz file
 
     The keys of save dictionary include:
         'channels' : a list of channel names
-        'eeg_raw' : a (k, n, 30*Fs/downsample_factor/2) numpy array, where k is the number of channels, Fs is the sampling rate, and n is the number of epochs
+        'features' : a (k, n, 30*Fs/downsample_factor/2) numpy array, where k is the number of channels, Fs is the
+                     sampling rate, and n is the number of epochs
         'sampling rate': a list of sampling rate related to channel names
 
     input:
         dir_path: the full path of the directory which contains all edf files
         output_file: the path of the output file which stores all the features
+        channels: the channels to extract
     output:
         None
     """
 
     num_files = 0
-    for dirName in os.listdir(dir_path):
+    dirNames = os.listdir(dir_path)
+    dirNames.sort()
+    for dirName in dirNames:
         #if num_files == 1: break
         nsrrid = dirName.split('-')[0]
         result = []
-        for fname in os.listdir(dir_path+'/'+dirName):
+        fnames = os.listdir(os.path.join(dir_path, dirName))
+        fnames.sort()
+        for fname in fnames:
             if fname.split('.')[1] != 'edf' or "T" in fname:        #bad data, sad
                 continue
-            fname = dir_path+'/'+dirName+'/'+fname
-            eeg_raw, fss = read_edf_file(fname, channels)
+
+            psg_path = os.path.join(os.path.join(dir_path, dirName), fname)
+            eeg_raw, fss, ecg_raw = read_edf_file(psg_path, channels, ecg_channel)
+
             fs = fss[0]         #as the sampling rates are the same
             print(eeg_raw.shape)
             k, M = eeg_raw.shape
             if M % (fs * 30) != 0:
                 M = int(M/(fs*30)) * fs * 30
                 eeg_raw = eeg_raw[:, 0:M]
+                ecg_raw = ecg_raw[0:M]
             eeg_raw = eeg_raw.reshape((k, int(M/(30*fs)), 30*fs))
-            result.append(eeg_raw)
+            ecg_raw = ecg_raw.reshape((int(M/(30*fs)), 30*fs))
+
+            new_eeg_raw = []
+            for ii in range(k):
+                new_sig = psg_preprocess(eeg_raw[0], ecg_raw)
+                new_eeg_raw.append(new_sig)
+
+            result.append(new_eeg_raw)
         eeg_raw = result[0]
         for i in range(1, len(result)):
             eeg_raw = np.concatenate((eeg_raw, result[i]), axis = 1)        #concatenate signals orignally saved in different files to a complete signal
-        features = downsample_fft(eeg_raw, 5, axis=2)
-        print("features shape ", features.shape)
+
+        eeg_raw = downsample_fft(eeg_raw, fs, axis=2)
+        print("features shape = ", eeg_raw.shape)
         save_dict = {
             "channels": channels,
-            "features": features,
+            "features": eeg_raw,
             "sampling rate": fss
         }
         np.savez(os.path.join(output_file, "Features_"+nsrrid), **save_dict)
@@ -122,7 +146,7 @@ def extractLabels(dir_path,output_file):
                 'NonREM1': 1,
                 'NonREM2': 2,
                 'NonREM3': 3,
-                'REM': 5
+                'REM': 4
                 }
     stageMapCsv = {-1: [1, 0, 0, 0, 0],
                    0: [1, 0, 0, 0, 0],
@@ -132,13 +156,15 @@ def extractLabels(dir_path,output_file):
                    5: [0, 0, 0, 0, 1]
                    }
     num_files = 0
-    for dirName in os.listdir(dir_path):
+    dirNames = os.listdir(dir_path)
+    dirNames.sort()
+    for dirName in dirNames:
         nsrrid = dirName.split('-')[0]
         #if num_files == 1: break
-        for fname in os.listdir(dir_path+'/'+dirName):
+        for fname in os.listdir(os.path.join(dir_path, dirName)):
             if fname.split('.')[1] != 'rml':
                 continue
-            fname = dir_path+'/'+dirName+'/'+fname
+            fname = os.path.join(os.path.join(dir_path, dirName), fname)
             print(fname)
             tree = ET.parse(fname)
             root = tree.getroot()
@@ -161,12 +187,12 @@ def extractLabels(dir_path,output_file):
             "stage_labels": data
         }
         np.savez(os.path.join(output_file, "Labels_" + nsrrid), **save_dict)
-        one_hot_data = []
-        for i in range(len(data)):
-            one_hot_data.append(stageMapCsv[data[i]])
-        np.asarray(one_hot_data)
-        one_hot_data = pd.DataFrame(one_hot_data)
-        one_hot_data.to_csv(os.path.join(output_file, "Labels_"+nsrrid+'.csv'), header=False, index=False)
+        # one_hot_data = []
+        # for i in range(len(data)):
+        #     one_hot_data.append(stageMapCsv[data[i]])
+        # np.asarray(one_hot_data)
+        # one_hot_data = pd.DataFrame(one_hot_data)
+        # one_hot_data.to_csv(os.path.join(output_file, "Labels_"+nsrrid+'.csv'), header=False, index=False)
         num_files += 1
     print("extracted %d files for labels" % num_files)
 
@@ -189,10 +215,10 @@ def extractEvents(dir_path,output_file):
     for dirName in os.listdir(dir_path):
         nsrrid = dirName.split('-')[0]
         # if num_files == 1: break
-        for fname in os.listdir(dir_path + '/' + dirName):
+        for fname in os.listdir(os.path.join(dir_path, dirName)):
             if fname.split('.')[1] != 'rml':
                 continue
-            fname = dir_path + '/' + dirName + '/' + fname
+            fname = os.path.join(os.path.join(dir_path, dirName), fname)
             print(fname)
             tree = ET.parse(fname)
             root = tree.getroot()
